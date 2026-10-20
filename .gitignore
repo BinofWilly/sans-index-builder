@@ -1,0 +1,7 @@
+# Your indexes, backups and trash. They're built from licensed course material: never commit them.
+data/
+
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

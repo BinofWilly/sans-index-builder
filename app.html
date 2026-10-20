@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SANS Index Builder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232557d6'/%3E%3Cpath d='M9 8h14M9 13h14M9 18h9M9 23h11' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f4f5f8; --panel:#fff; --panel-2:#f8f9fb; --text:#1b2130; --muted:#667085; --border:#e0e3ea;
+  --accent:#2557d6; --accent-soft:#e6edfc; --danger:#c62828; --ok:#1e8e3e; --warn:#b26a00;
+  --hover:#f2f5fb; --grp:#eceff5; --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.07);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111418; --panel:#1a1e24; --panel-2:#15191e; --text:#e5e8ee; --muted:#98a2b3; --border:#2b313a;
+    --accent:#6d96ff; --accent-soft:#1f2a44; --danger:#ff6b6b; --ok:#4cc38a; --warn:#f0b04c;
+    --hover:#222832; --grp:#20252d; --shadow:none; color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;outline:none;min-width:0}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+textarea{width:100%;resize:vertical;font:12px/1.4 ui-monospace,Menlo,monospace}
+button{cursor:pointer;border:1px solid var(--border);background:var(--panel);border-radius:8px;padding:8px 12px;white-space:nowrap}
+button:hover{background:var(--hover)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover{filter:brightness(1.08);background:var(--accent)}
+button.danger{color:var(--danger)}
+button:disabled{opacity:.6;cursor:progress}
+.muted{color:var(--muted)} .small{font-size:12px}
+header.top{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.brand{font-weight:700;margin-right:6px;display:flex;align-items:center;gap:8px;font-size:15px}
+.brand svg{width:22px;height:22px}
+.spacer{flex:1}
+.status{font-size:13px;display:flex;align-items:center;gap:6px;color:var(--muted)}
+.status::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.status.saved{color:var(--ok)} .status.pending,.status.saving{color:var(--warn)} .status.error,.status.conflict{color:var(--danger)}
+main{flex:1;display:flex;flex-direction:column;min-height:0;padding:16px;gap:12px;max-width:1400px;width:100%;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+#entry{padding:14px;transition:box-shadow .15s,border-color .15s}
+#entry.editing{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+#entry .row{display:grid;grid-template-columns:72px 90px minmax(160px,1fr) minmax(200px,2fr) auto;gap:8px;align-items:end}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
+label.f input{color:var(--text);font-weight:400;font-size:14px}
+.flash{animation:flash .5s}
+@keyframes flash{from{background:var(--accent-soft)}to{background:var(--panel)}}
+.hint{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+.hint:empty{display:none}
+.hint .lbl{font-size:12px;color:var(--muted);font-weight:600}
+.chip{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--panel-2);max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.chip.exact{border-color:var(--warn)}
+.chip .ref{color:var(--muted)}
+.foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}
+#lastAdded{color:var(--ok)}
+kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--panel-2)}
+#list{flex:1;display:flex;flex-direction:column;min-height:260px}
+.toolbar{display:flex;gap:8px;padding:10px;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap}
+.toolbar input[type=search]{flex:1;min-width:200px}
+.stats{font-size:12px;color:var(--muted)}
+.tablewrap{overflow:auto;flex:1;min-height:0}
+table.entries{width:100%;border-collapse:collapse;table-layout:fixed}
+.entries thead th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-size:12px;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border);z-index:1}
+.entries td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:top;overflow-wrap:anywhere}
+.entries tbody tr:hover td{background:var(--hover)}
+.entries tr.grp td{background:var(--grp);font-weight:700;font-size:12px;letter-spacing:.04em;padding:4px 10px;color:var(--muted)}
+.entries td.t{font-weight:600}
+.entries td.n{white-space:nowrap;font-variant-numeric:tabular-nums}
+.entries td.act{text-align:right;white-space:nowrap;padding:3px 6px}
+.entries td.act button{padding:2px 7px;border-color:transparent;background:transparent;color:var(--muted)}
+.entries td.act button:hover{color:var(--text);background:var(--panel);border-color:var(--border)}
+.entries tr.editing td{background:var(--accent-soft)!important}
+mark{background:#ffe58a;color:#111;border-radius:2px;padding:0 1px}
+.bk{display:inline-block;min-width:26px;text-align:center;padding:1px 6px;border-radius:6px;background:var(--c,#ddd);color:#1b1b1b;font-weight:700;font-size:12px}
+.empty{padding:48px 20px;text-align:center;color:var(--muted)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:#1f2430;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:.2s;display:flex;gap:14px;align-items:center;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100vw - 32px)}
+#toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#toast button{background:transparent;color:#9db7ff;border:none;padding:0;font-weight:700}
+dialog{border:1px solid var(--border);border-radius:14px;padding:0;background:var(--panel);color:var(--text);width:min(660px,calc(100vw - 32px));box-shadow:0 20px 50px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(10,12,16,.45)}
+dialog .hd{padding:14px 18px;border-bottom:1px solid var(--border);font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+dialog .hd button{border:none;background:none;padding:2px 6px;color:var(--muted)}
+dialog .bd{padding:16px 18px;display:flex;flex-direction:column;gap:12px;max-height:72vh;overflow:auto}
+dialog .ft{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+dialog h4{margin:6px 0 0;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+dialog p{margin:0}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px}
+.opts label{display:flex;gap:8px;align-items:center}
+.btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.err{color:var(--danger);font-size:13px}
+.err:empty{display:none}
+.books td{padding:3px 4px}
+.books input[type=text]{width:100%}
+input[type=color]{padding:2px;width:46px;height:34px;cursor:pointer}
+@media (max-width:760px){
+  header.top{padding:10px}
+  main{padding:10px}
+  #entry .row{grid-template-columns:1fr 1fr}
+  #entry .row .wide{grid-column:1/-1}
+  .opts{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><path d="M9 8h14M9 13h14M9 18h9M9 23h11" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>
+    SANS Index Builder
+  </div>
+  <select id="indexSel" title="Switch index"></select>
+  <button id="btnNew">+ New index</button>
+  <button id="btnSettings">Books &amp; settings</button>
+  <button id="btnExport" class="primary">Export / Import</button>
+  <div class="spacer"></div>
+  <div id="status" class="status saved">Ready</div>
+</header>
+
+<main>
+  <section id="entry" class="card">
+    <div class="row">
+      <label class="f">Book<input id="fBook" autocomplete="off" spellcheck="false"></label>
+      <label class="f">Page<input id="fPage" autocomplete="off" spellcheck="false" inputmode="numeric"></label>
+      <label class="f wide">Term<input id="fTerm" autocomplete="off" placeholder="e.g. Mimikatz"></label>
+      <label class="f wide">Description<input id="fDesc" autocomplete="off" placeholder="Short note to jog your memory"></label>
+      <div class="btns wide"><button id="btnCancel" hidden>Cancel</button><button id="btnAdd" class="primary">Add</button></div>
+    </div>
+    <div id="hint" class="hint"></div>
+    <div class="foot">
+      <span><kbd>Enter</kbd> save · <kbd>⌥/Alt</kbd>+<kbd>↑</kbd><kbd>↓</kbd> page ±1 · <kbd>⌥/Alt</kbd>+<kbd>1</kbd>–<kbd>9</kbd> book · <kbd>Esc</kbd> cancel/clear · <kbd>⌘/Ctrl</kbd>+<kbd>K</kbd> search · double-click a row to edit</span>
+      <span id="lastAdded"></span>
+    </div>
+  </section>
+
+  <section id="list" class="card">
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Search terms &amp; descriptions…" autocomplete="off">
+      <select id="bookFilter" title="Filter by book"></select>
+      <select id="sortSel" title="Sort">
+        <option value="az">A–Z</option>
+        <option value="book">Book &amp; page</option>
+        <option value="recent">Recently added</option>
+      </select>
+      <span id="stats" class="stats"></span>
+    </div>
+    <div class="tablewrap">
+      <table class="entries">
+        <colgroup><col style="width:26%"><col style="width:64px"><col style="width:76px"><col><col style="width:78px"></colgroup>
+        <thead><tr><th>Term</th><th>Book</th><th>Page</th><th>Description</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div id="empty" class="empty" hidden></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" role="status"></div>
+
+<dialog id="dlgNew">
+  <form id="formNew">
+    <div class="hd">New index</div>
+    <div class="bd">
+      <label class="f">Short name (also the file name)<input id="newName" placeholder="SEC504" autocomplete="off" required></label>
+      <label class="f">Title shown on exports (optional)<input id="newTitle" placeholder="SEC504 Index" autocomplete="off"></label>
+      <div id="newErr" class="err"></div>
+    </div>
+    <div class="ft"><button type="button" id="newCancel">Cancel</button><button type="submit" class="primary">Create</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlgSettings">
+  <div class="hd">Books &amp; settings <button data-close title="Close">✕</button></div>
+  <div class="bd">
+    <label class="f">Index title (used on exports)<input id="setTitle" autocomplete="off"></label>
+    <h4>Books</h4>
+    <p class="small muted">Name each book and pick a color. Colors tag rows in the list and shade rows in exports.</p>
+    <table class="books"><tbody id="booksBody"></tbody></table>
+    <div class="btns"><button id="btnAddBook">+ Add book</button></div>
+    <h4>Danger zone</h4>
+    <div class="btns"><button id="btnDelete" class="danger">Delete this index…</button><span class="small muted">Moves it to data/trash, nothing is erased.</span></div>
+  </div>
+  <div class="ft"><button class="primary" data-close>Done</button></div>
+</dialog>
+
+<dialog id="dlgExport">
+  <div class="hd">Export / Import <button data-close title="Close">✕</button></div>
+  <div class="bd">
+    <h4>Export options</h4>
+    <div class="opts">
+      <label><input type="checkbox" id="optMerge"> Merge identical terms into one row</label>
+      <label><input type="checkbox" id="optColor"> Shade rows by book color</label>
+      <label><input type="checkbox" id="optSymbols"> Ignore leading symbols when sorting ($MFT → M)</label>
+      <label><input type="checkbox" id="optDesc"> Include descriptions</label>
+      <label>Paper <select id="optPaper"><option value="letter">US Letter</option><option value="a4">A4</option></select></label>
+    </div>
+    <h4>Export</h4>
+    <div class="btns">
+      <button class="primary" id="expDocx">Word (.docx)</button>
+      <button id="expPrint">Print / PDF</button>
+      <button id="expCsv">CSV</button>
+      <button id="expJson">JSON backup</button>
+    </div>
+    <h4>Import</h4>
+    <p class="small muted">CSV/TSV from a spreadsheet (columns like Term, Book, Page, Description; header row optional) or a JSON backup. Entries are added to the current index and exact duplicates (same term + book + page) are skipped.</p>
+    <div class="btns"><button id="impFileBtn">Choose file…</button><input type="file" id="impFile" accept=".csv,.tsv,.txt,.json" hidden></div>
+    <textarea id="impPaste" rows="4" placeholder="…or paste rows copied from Excel / Google Sheets / Numbers here"></textarea>
+    <div class="btns"><button id="impPasteBtn">Import pasted rows</button></div>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const fBook = $('#fBook'), fPage = $('#fPage'), fTerm = $('#fTerm'), fDesc = $('#fDesc'), search = $('#search');
+
+const PALETTE = ['#F8C8D0', '#C9E7C1', '#BFD9F6', '#FFF0A8', '#D9CCF2', '#FFD3B8', '#BDE8EC', '#E4E4E4'];
+const DEFAULT_SETTINGS = { merge: false, colorRows: true, ignoreSymbols: true, showDesc: true, paper: 'letter' };
+const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$/;
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+const META_KEYS = ['title', 'books', 'settings', 'cursor'];
+const state = { names: [], doc: null, dirty: false, syncing: false, sending: false, saveTimer: null, editingId: null, preEdit: null };
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const truncate = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
+
+// ------------------------------------------------------------------ server
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  let res;
+  try { res = await fetch('/api/' + path, opts); }
+  catch { const err = new Error('Cannot reach the local server. Is sans_index.py still running?'); err.status = 0; throw err; }
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = (await res.json()).error || msg; } catch {}
+    const err = new Error(msg); err.status = res.status; throw err;
+  }
+  return (res.headers.get('Content-Type') || '').includes('json') ? res.json() : res.blob();
+}
+
+const STATUS_TEXT = { saved: 'All changes saved', pending: 'Unsaved changes…', saving: 'Saving…', error: 'Save failed, retrying…', offline: 'Server not reachable' };
+function setStatus(s, detail) { const el = $('#status'); el.className = 'status ' + s; el.textContent = STATUS_TEXT[s]; el.title = detail || ''; }
+
+function markDirty() {
+  if (!state.doc) return;
+  state.dirty = true;
+  setStatus('pending');
+  clearTimeout(state.saveTimer);
+  state.saveTimer = setTimeout(sync, 400);
+}
+const stamp = key => { state.doc.stamps[key] = Date.now(); };
+
+// Sends our copy (PUT) or just asks for the latest (GET). Either way the server answers with
+// the merged index, which can include edits made on another computer via the synced folder.
+async function sync() {
+  clearTimeout(state.saveTimer);
+  const doc = state.doc;
+  if (!doc) return;
+  if (state.syncing) { if (state.dirty) state.saveTimer = setTimeout(sync, 250); return; }
+  const sending = state.dirty;
+  Object.assign(state, { syncing: true, sending, dirty: false });
+  if (sending) setStatus('saving');
+  try {
+    const remote = await api(sending ? 'PUT' : 'GET', 'indexes/' + encodeURIComponent(doc.name), sending ? doc : undefined);
+    if (state.doc !== doc) return;
+    const { changed, ahead } = mergeInto(doc, remote);
+    if (changed) { renderAll(); toast('Pulled in changes from your other computer'); }
+    if (ahead) state.dirty = true; // the file is missing some of our edits: send them again
+    setStatus(state.dirty ? 'pending' : 'saved');
+    if (state.dirty) state.saveTimer = setTimeout(sync, 400);
+  } catch (err) {
+    if (sending) state.dirty = true;
+    if (state.doc !== doc) return;
+    if (err.status === 404 && !sending) { indexGone(doc.name); return; }
+    if (state.dirty) { setStatus('error', err.message); state.saveTimer = setTimeout(sync, 3000); }
+    else if (err.status === 0) setStatus('offline', err.message);
+  } finally { Object.assign(state, { syncing: false, sending: false }); }
+}
+
+async function flush() {
+  for (let i = 0; i < 30 && (state.dirty || state.syncing); i++) {
+    if (state.syncing) await sleep(100); else await sync();
+  }
+}
+
+// Fold the server's copy into ours: the newest edit of each entry wins and deletions are
+// remembered, so nothing typed on either computer is overwritten by the other.
+function mergeInto(doc, remote) {
+  let changed = false;
+  const rDeleted = remote.deleted && typeof remote.deleted === 'object' ? remote.deleted : {};
+  for (const [id, t] of Object.entries(rDeleted)) if (!(doc.deleted[id] >= t)) doc.deleted[id] = t;
+  const mine = new Map(doc.entries.map(e => [e.id, e]));
+  const theirs = new Map();
+  for (const r of Array.isArray(remote.entries) ? remote.entries : []) {
+    if (!r || !r.id) continue;
+    theirs.set(r.id, r);
+    if (doc.deleted[r.id] >= mtOf(r)) continue;
+    const l = mine.get(r.id);
+    if (!l) { const e = normEntry({ ...r }); doc.entries.push(e); mine.set(e.id, e); changed = true; }
+    else if (mtOf(r) > mtOf(l)) { Object.assign(l, normEntry({ ...r })); changed = true; }
+  }
+  const kept = doc.entries.filter(e => !(doc.deleted[e.id] >= mtOf(e)));
+  if (kept.length !== doc.entries.length) { doc.entries = kept; changed = true; }
+  const rStamps = remote.stamps && typeof remote.stamps === 'object' ? remote.stamps : {};
+  for (const k of META_KEYS) {
+    if (k in remote && (rStamps[k] || 0) > (doc.stamps[k] || 0)) {
+      doc[k] = remote[k]; doc.stamps[k] = rStamps[k];
+      if (k !== 'cursor') changed = true;
+    }
+  }
+  normalizeMeta(doc);
+  const ahead = doc.entries.some(e => { const r = theirs.get(e.id); return !r || mtOf(e) > mtOf(r); })
+    || Object.entries(doc.deleted).some(([id, t]) => !(rDeleted[id] >= t))
+    || META_KEYS.some(k => (doc.stamps[k] || 0) > (rStamps[k] || 0));
+  return { changed, ahead };
+}
+
+// ------------------------------------------------------------------ indexes
+const mtOf = e => Number(e.mt || e.ts || 0);
+function normEntry(e) {
+  e.id = e.id || uid();
+  for (const k of ['term', 'book', 'page', 'desc']) e[k] = String(e[k] ?? '');
+  e.mt = mtOf(e);
+  return e;
+}
+function normalizeMeta(doc) {
+  doc.books = doc.books && typeof doc.books === 'object' ? doc.books : {};
+  doc.settings = Object.assign({}, DEFAULT_SETTINGS, doc.settings || {});
+  if (!doc.cursor || typeof doc.cursor !== 'object') doc.cursor = { book: doc.settings.lastBook ?? '1', page: doc.settings.lastPage ?? '' };
+  delete doc.settings.lastBook; delete doc.settings.lastPage;
+  doc.title = doc.title || `${doc.name} Index`;
+}
+function normalize(doc) {
+  doc.entries = Array.isArray(doc.entries) ? doc.entries.filter(e => e && typeof e === 'object').map(normEntry) : [];
+  doc.deleted = doc.deleted && typeof doc.deleted === 'object' ? doc.deleted : {};
+  doc.stamps = doc.stamps && typeof doc.stamps === 'object' ? doc.stamps : {};
+  delete doc.rev;
+  normalizeMeta(doc);
+  return doc;
+}
+
+async function refreshNames() {
+  const { indexes } = await api('GET', 'indexes');
+  state.names = indexes;
+  const sel = $('#indexSel');
+  sel.innerHTML = indexes.map(i => `<option value="${esc(i.name)}">${esc(i.name)}</option>`).join('') || '<option value="">(no index yet)</option>';
+  if (state.doc) sel.value = state.doc.name;
+}
+
+async function openIndex(name) {
+  await flush();
+  if (state.dirty && !confirm('Some changes could not be saved yet. Switch anyway and lose them?')) { $('#indexSel').value = state.doc.name; return; }
+  const doc = normalize(await api('GET', 'indexes/' + encodeURIComponent(name)));
+  Object.assign(state, { doc, dirty: false, editingId: null, preEdit: null });
+  store.set('lastIndex', name);
+  $('#indexSel').value = name;
+  $('#entry').classList.remove('editing'); $('#btnAdd').textContent = 'Add'; $('#btnCancel').hidden = true;
+  fBook.value = doc.cursor.book ?? '1';
+  fPage.value = doc.cursor.page ?? '';
+  fTerm.value = ''; fDesc.value = ''; search.value = ''; $('#bookFilter').value = '';
+  $('#lastAdded').textContent = '';
+  setStatus('saved');
+  renderAll();
+  fTerm.focus();
+}
+
+async function createIndex(name, title) {
+  if (!NAME_RE.test(name)) throw new Error('Use letters, numbers, spaces, _ . - (max 64), starting with a letter or number.');
+  if (state.names.some(n => n.name.toLowerCase() === name.toLowerCase())) throw new Error('An index with that name already exists.');
+  const doc = { version: 2, name, title: title || `${name} Index`, books: {}, settings: { ...DEFAULT_SETTINGS }, cursor: { book: '1', page: '' }, entries: [], deleted: {}, stamps: {} };
+  await api('PUT', 'indexes/' + encodeURIComponent(name), doc);
+  await refreshNames();
+  await openIndex(name);
+}
+
+async function deleteIndex() {
+  const name = state.doc.name;
+  if (!confirm(`Delete the index “${name}”?\n\nThe file is moved to data/trash, so you can still recover it.`)) return;
+  clearTimeout(state.saveTimer);
+  while (state.syncing) await sleep(50);
+  Object.assign(state, { doc: null, dirty: false });
+  $('#dlgSettings').close();
+  try { await api('DELETE', 'indexes/' + encodeURIComponent(name)); } catch (err) { alert(err.message); }
+  await openFirstIndex();
+}
+
+async function indexGone(name) {
+  Object.assign(state, { doc: null, dirty: false });
+  toast(`“${name}” was deleted on another computer`);
+  await openFirstIndex();
+}
+
+async function openFirstIndex() {
+  await refreshNames();
+  if (state.names.length) await openIndex(state.names[0].name);
+  else { renderAll(); openNewDialog(); }
+}
+
+// ------------------------------------------------------------------ books & sorting
+function defaultColor(b) {
+  const n = parseInt(b, 10);
+  if (String(n) === String(b).trim() && n > 0) return PALETTE[(n - 1) % PALETTE.length];
+  let h = 0; for (const c of String(b)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+function bookColor(b) {
+  if (!b) return null;
+  const c = state.doc?.books?.[b]?.color;
+  return c && HEX_RE.test(c) ? c : defaultColor(b);
+}
+function bookTitle(b) { return state.doc?.books?.[b]?.title || ''; }
+function bookLabel(b) { return b ? `Book ${b}${bookTitle(b) ? ': ' + bookTitle(b) : ''}` : 'No book'; }
+function allBooks() {
+  const set = new Set(Object.keys(state.doc.books));
+  for (const e of state.doc.entries) if (e.book) set.add(e.book);
+  return [...set].sort(collator.compare);
+}
+
+function sortKey(term, ignoreSymbols) {
+  const t = term.trim();
+  if (!ignoreSymbols) return t;
+  return t.replace(/^[^\p{L}\p{N}]+/u, '') || t;
+}
+function groupOf(key) {
+  const c = key.charAt(0);
+  if (!c) return '#';
+  const base = c.normalize('NFD').charAt(0).toUpperCase();
+  if (base >= 'A' && base <= 'Z') return base;
+  if (c >= '0' && c <= '9') return '0–9';
+  if (/\p{L}/u.test(c)) return c.toUpperCase();
+  return '#';
+}
+const groupRank = g => g === '#' ? 0 : g === '0–9' ? 1 : (g >= 'A' && g <= 'Z' && g.length === 1) ? 2 : 3;
+function sortAZ(entries, ignoreSymbols) {
+  return entries.map(e => { const k = sortKey(e.term, ignoreSymbols); return { e, k, g: groupOf(k) }; })
+    .sort((a, b) => groupRank(a.g) - groupRank(b.g) || collator.compare(a.k, b.k) || collator.compare(a.e.term, b.e.term)
+      || collator.compare(a.e.book, b.e.book) || collator.compare(a.e.page, b.e.page));
+}
+const byBookPage = (a, b) => collator.compare(a.book, b.book) || collator.compare(a.page, b.page) || collator.compare(a.term, b.term);
+
+// ------------------------------------------------------------------ rendering
+function highlight(text, q) {
+  if (!q) return esc(text);
+  const i = text.toLowerCase().indexOf(q);
+  if (i < 0) return esc(text);
+  return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+}
+
+function renderTable() {
+  const doc = state.doc, tbody = $('#tbody'), empty = $('#empty');
+  if (!doc) {
+    tbody.innerHTML = '';
+    empty.hidden = false;
+    empty.innerHTML = 'No index yet. Click <b>+ New index</b> to create one (e.g. SEC504).';
+    return;
+  }
+  const q = search.value.trim().toLowerCase();
+  const bf = $('#bookFilter').value;
+  const sort = $('#sortSel').value;
+  const list = doc.entries.filter(e => (!bf || e.book === bf) && (!q || e.term.toLowerCase().includes(q) || e.desc.toLowerCase().includes(q)));
+  let items;
+  if (sort === 'az') items = sortAZ(list, doc.settings.ignoreSymbols).map(x => ({ e: x.e, g: x.g === '#' ? '# Symbols' : x.g }));
+  else if (sort === 'book') items = list.slice().sort(byBookPage).map(e => ({ e, g: bookLabel(e.book) }));
+  else items = list.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).map(e => ({ e, g: null }));
+
+  const out = [];
+  let last;
+  for (const { e, g } of items) {
+    if (g !== null && g !== last) { out.push(`<tr class="grp"><td colspan="5">${esc(g)}</td></tr>`); last = g; }
+    const bk = e.book ? `<span class="bk" style="--c:${bookColor(e.book)}" title="${esc(bookLabel(e.book))}">${esc(e.book)}</span>` : '';
+    out.push(`<tr data-id="${esc(e.id)}"${e.id === state.editingId ? ' class="editing"' : ''}>`
+      + `<td class="t">${highlight(e.term, q)}</td><td class="n">${bk}</td><td class="n">${esc(e.page)}</td>`
+      + `<td class="d">${highlight(e.desc, q)}</td>`
+      + `<td class="act"><button data-act="edit" title="Edit">✎</button><button data-act="del" title="Delete">✕</button></td></tr>`);
+  }
+  tbody.innerHTML = out.join('');
+  empty.hidden = items.length > 0;
+  if (!items.length) empty.textContent = doc.entries.length ? 'No entries match your search.' : 'No entries yet. Type a term above and press Enter.';
+}
+
+function renderStats() {
+  const doc = state.doc;
+  if (!doc) { $('#stats').textContent = ''; return; }
+  const counts = {};
+  for (const e of doc.entries) { const b = e.book || '?'; counts[b] = (counts[b] || 0) + 1; }
+  const parts = Object.keys(counts).sort(collator.compare).map(b => `B${b}: ${counts[b]}`);
+  $('#stats').textContent = `${doc.entries.length.toLocaleString()} entries` + (parts.length ? '  ·  ' + parts.join('  ·  ') : '');
+}
+
+function renderBookFilter() {
+  const sel = $('#bookFilter'), cur = sel.value;
+  const books = state.doc ? allBooks() : [];
+  sel.innerHTML = '<option value="">All books</option>' + books.map(b => `<option value="${esc(b)}">${esc(bookLabel(b))}</option>`).join('');
+  sel.value = books.includes(cur) ? cur : '';
+}
+
+function renderHint() {
+  const el = $('#hint');
+  const q = fTerm.value.trim().toLowerCase();
+  if (!state.doc || q.length < 2) { el.innerHTML = ''; return; }
+  const scored = [];
+  for (const e of state.doc.entries) {
+    if (e.id === state.editingId) continue;
+    const t = e.term.toLowerCase();
+    const s = t === q ? 0 : t.startsWith(q) ? 1 : t.includes(q) ? 2 : -1;
+    if (s >= 0) scored.push([s, e]);
+  }
+  if (!scored.length) { el.innerHTML = ''; return; }
+  scored.sort((a, b) => a[0] - b[0] || collator.compare(a[1].term, b[1].term) || byBookPage(a[1], b[1]));
+  const top = scored.slice(0, 8);
+  el.innerHTML = `<span class="lbl">${scored[0][0] === 0 ? 'Already indexed:' : 'Similar:'}</span>`
+    + top.map(([s, e]) => `<button class="chip${s === 0 ? ' exact' : ''}" data-id="${esc(e.id)}" tabindex="-1" title="Click to reuse this term and description">`
+      + `<b>${esc(e.term)}</b> <span class="ref">B${esc(e.book)} p${esc(e.page)}</span>${e.desc ? ' · ' + esc(truncate(e.desc, 48)) : ''}</button>`).join('')
+    + (scored.length > top.length ? `<span class="small muted">+${scored.length - top.length} more</span>` : '');
+}
+
+function renderAll() { renderBookFilter(); renderTable(); renderStats(); renderHint(); }
+
+let toastTimer;
+function toast(msg, action) {
+  const el = $('#toast');
+  el.innerHTML = `<span>${esc(msg)}</span>` + (action ? `<button>${esc(action.label)}</button>` : '');
+  if (action) el.querySelector('button').onclick = () => { action.fn(); el.classList.remove('show'); };
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), action ? 7000 : 2500);
+}
+function flashField(el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+
+// ------------------------------------------------------------------ entry form
+function submitEntry() {
+  if (!state.doc) { openNewDialog(); return; }
+  const term = fTerm.value.trim();
+  if (!term) { fTerm.focus(); flashField(fTerm); return; }
+  const vals = { term, book: fBook.value.trim(), page: fPage.value.trim(), desc: fDesc.value.trim() };
+  const now = Date.now();
+  if (state.editingId) {
+    const e = state.doc.entries.find(x => x.id === state.editingId);
+    if (e) Object.assign(e, vals, { mt: now });
+    else state.doc.entries.push({ id: state.editingId, ...vals, ts: now, mt: now }); // deleted elsewhere meanwhile
+    endEdit();
+    toast('Entry updated');
+  } else {
+    state.doc.entries.push({ id: uid(), ...vals, ts: now, mt: now });
+    state.doc.cursor = { book: vals.book, page: vals.page };
+    stamp('cursor');
+    fTerm.value = ''; fDesc.value = '';
+    $('#lastAdded').textContent = `✓ Added “${truncate(term, 40)}” (B${vals.book} p${vals.page})`;
+  }
+  markDirty();
+  renderAll();
+  fTerm.focus();
+}
+
+function startEdit(id) {
+  const e = state.doc.entries.find(x => x.id === id);
+  if (!e) return;
+  if (!state.editingId) state.preEdit = { book: fBook.value, page: fPage.value, term: fTerm.value, desc: fDesc.value };
+  state.editingId = id;
+  fBook.value = e.book; fPage.value = e.page; fTerm.value = e.term; fDesc.value = e.desc;
+  $('#entry').classList.add('editing'); $('#btnAdd').textContent = 'Update'; $('#btnCancel').hidden = false;
+  renderTable(); renderHint();
+  $('#entry').scrollIntoView({ block: 'nearest' });
+  fTerm.focus(); fTerm.select();
+}
+function endEdit() {
+  const p = state.preEdit || { book: fBook.value, page: fPage.value, term: '', desc: '' };
+  state.editingId = null; state.preEdit = null;
+  fBook.value = p.book; fPage.value = p.page; fTerm.value = p.term; fDesc.value = p.desc;
+  $('#entry').classList.remove('editing'); $('#btnAdd').textContent = 'Add'; $('#btnCancel').hidden = true;
+}
+function cancelEdit() { endEdit(); renderTable(); renderHint(); fTerm.focus(); }
+
+function deleteEntry(id) {
+  const doc = state.doc;
+  const i = doc.entries.findIndex(x => x.id === id);
+  if (i < 0) return;
+  const [e] = doc.entries.splice(i, 1);
+  doc.deleted[id] = Date.now();
+  if (state.editingId === id) endEdit();
+  markDirty(); renderAll();
+  toast(`Deleted “${truncate(e.term, 40)}”`, { label: 'Undo', fn: () => {
+    if (state.doc !== doc) return;
+    delete doc.deleted[id];
+    e.mt = Date.now();
+    doc.entries.push(e);
+    markDirty(); renderAll();
+  } });
+}
+
+function bumpPage(d) {
+  const m = fPage.value.match(/\d+/);
+  fPage.value = String(Math.max(1, m ? parseInt(m[0], 10) + d : 1));
+  flashField(fPage);
+}
+
+// ------------------------------------------------------------------ export
+function refText(refs) {
+  const byBook = new Map();
+  for (const r of refs) {
+    if (!byBook.has(r.book)) byBook.set(r.book, []);
+    const pages = byBook.get(r.book);
+    if (r.page && !pages.includes(r.page)) pages.push(r.page);
+  }
+  return [...byBook].map(([b, pages]) => (b ? `B${b}` : '') + (b && pages.length ? ': ' : '') + pages.join(', ')).join('; ');
+}
+
+function buildModel() {
+  const doc = state.doc, s = doc.settings;
+  const sorted = sortAZ(doc.entries.filter(e => e.term.trim()), s.ignoreSymbols);
+  const groups = [];
+  const push = (g, row) => {
+    let grp = groups[groups.length - 1];
+    if (!grp || grp.label !== g) groups.push(grp = { label: g, rows: [] });
+    grp.rows.push(row);
+  };
+  let columns;
+  if (s.merge) {
+    columns = s.showDesc
+      ? [{ label: 'Term', width: 28 }, { label: 'Book: pages', width: 20 }, { label: 'Description', width: 52 }]
+      : [{ label: 'Term', width: 60 }, { label: 'Book: pages', width: 40 }];
+    const merged = new Map();
+    for (const { e, g } of sorted) {
+      const k = e.term.trim().toLowerCase();
+      let m = merged.get(k);
+      if (!m) merged.set(k, m = { term: e.term.trim(), g, refs: [], descs: [] });
+      m.refs.push(e);
+      if (e.desc && !m.descs.some(d => d.toLowerCase() === e.desc.toLowerCase())) m.descs.push(e.desc);
+    }
+    for (const m of merged.values()) {
+      m.refs.sort(byBookPage);
+      const oneBook = new Set(m.refs.map(r => r.book)).size === 1;
+      const cells = [m.term, refText(m.refs)];
+      if (s.showDesc) cells.push(m.descs.join('; '));
+      push(m.g, { cells, fill: s.colorRows && oneBook ? bookColor(m.refs[0].book) : null });
+    }
+  } else {
+    columns = s.showDesc
+      ? [{ label: 'Term', width: 26 }, { label: 'Book', width: 7 }, { label: 'Page', width: 9 }, { label: 'Description', width: 58 }]
+      : [{ label: 'Term', width: 64 }, { label: 'Book', width: 16 }, { label: 'Page', width: 20 }];
+    for (const { e, g } of sorted) {
+      const cells = [e.term.trim(), e.book, e.page];
+      if (s.showDesc) cells.push(e.desc);
+      push(g, { cells, fill: s.colorRows ? bookColor(e.book) : null });
+    }
+  }
+  const legend = allBooks().filter(b => bookTitle(b) || doc.entries.some(e => e.book === b))
+    .map(b => ({ label: bookLabel(b), fill: s.colorRows ? bookColor(b) : null }));
+  return {
+    title: doc.title, paper: s.paper, columns, groups, legend,
+    subtitle: `${doc.entries.length.toLocaleString()} entries · generated ${new Date().toLocaleDateString()}`,
+  };
+}
+
+function download(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+const fileBase = () => state.doc.name.replace(/\s+/g, '_');
+const today = () => new Date().toISOString().slice(0, 10);
+
+async function exportDocx(btn) {
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Building…';
+  try { download(await api('POST', 'docx', buildModel()), `${fileBase()}-index.docx`); }
+  catch (err) { alert('Word export failed: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+
+function printHtml() {
+  const m = buildModel();
+  const n = m.columns.length;
+  const rows = m.groups.map(g => `<tr class="g"><td colspan="${n}">${esc(g.label)}</td></tr>`
+    + g.rows.map(r => `<tr${r.fill ? ` style="background:${r.fill}"` : ''}>${r.cells.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')).join('');
+  const legend = m.legend.length ? `<div class="legend">${m.legend.map(l => `<span${l.fill ? ` style="background:${l.fill}"` : ''}>${esc(l.label)}</span>`).join('')}</div>` : '';
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(m.title)}</title><style>
+@page{size:${m.paper === 'a4' ? 'A4' : 'letter'};margin:12mm}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}
+body{font:9pt/1.3 Calibri,Carlito,"Segoe UI",Helvetica,Arial,sans-serif;margin:0;padding:20px;color:#111;background:#fff}
+h1{font-size:16pt;margin:0 0 2px}.sub{color:#666;font-size:8pt;margin-bottom:8px}
+.legend{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}.legend span{padding:1px 6px;border:1px solid #bbb;font-size:8pt}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th,td{border:1px solid #bfbfbf;padding:1px 4px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+thead th{background:#d9dce3}tbody td:first-child{font-weight:700}
+tr{break-inside:avoid}tr.g td{background:#3a3f4b;color:#fff;font-weight:700;font-size:10.5pt}
+.bar{margin-bottom:14px;display:flex;gap:10px;align-items:center;font:13px system-ui,sans-serif;color:#555}
+.bar button{font:600 14px system-ui,sans-serif;padding:7px 16px;border-radius:8px;border:1px solid #2557d6;background:#2557d6;color:#fff;cursor:pointer}
+@media print{.bar{display:none}body{padding:0}}
+</style></head><body>
+<div class="bar"><button onclick="print()">Print / Save as PDF</button><span>Tip: enable “Background graphics” in the print dialog to keep the colors.</span></div>
+<h1>${esc(m.title)}</h1><div class="sub">${esc(m.subtitle)}</div>${legend}
+<table><colgroup>${m.columns.map(c => `<col style="width:${c.width}%">`).join('')}</colgroup>
+<thead><tr>${m.columns.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
+</body></html>`;
+}
+
+function exportPrint() {
+  const html = printHtml();
+  if (window.open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank')) return;
+  // Pop-ups blocked: print straight from a hidden frame instead.
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  frame.onload = () => { frame.contentWindow.focus(); frame.contentWindow.print(); setTimeout(() => frame.remove(), 60000); };
+  frame.srcdoc = html;
+  document.body.appendChild(frame);
+}
+
+function csvField(v) { v = String(v ?? ''); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function exportCsv() {
+  const rows = [['Term', 'Book', 'Page', 'Description'],
+    ...sortAZ(state.doc.entries, state.doc.settings.ignoreSymbols).map(({ e }) => [e.term, e.book, e.page, e.desc])];
+  download(new Blob(['﻿' + rows.map(r => r.map(csvField).join(',')).join('\r\n')], { type: 'text/csv' }), `${fileBase()}-index.csv`);
+}
+function exportJson() {
+  download(new Blob([JSON.stringify(state.doc, null, 1)], { type: 'application/json' }), `${fileBase()}-backup-${today()}.json`);
+}
+
+// ------------------------------------------------------------------ import
+const ALIASES = {
+  term: ['term', 'terms', 'topic', 'keyword', 'keywords', 'subject', 'entry', 'word', 'concept', 'name', 'title', 'item'],
+  book: ['book', 'bk', 'b', 'volume', 'vol', 'booknumber', 'bookno', 'book#'],
+  page: ['page', 'pg', 'p', 'pages', 'pagenumber', 'pageno', 'page#', 'pgs'],
+  desc: ['description', 'desc', 'notes', 'note', 'definition', 'details', 'detail', 'comment', 'comments', 'summary', 'info', 'context', 'meaning'],
+};
+
+function parseDelimited(text) {
+  text = text.replace(/^﻿/, '');
+  const first = text.split(/\r?\n/, 1)[0];
+  const delim = ['\t', ',', ';'].map(d => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else if (c === '"' && field === '') inQ = true;
+    else if (c === delim) { row.push(field); field = ''; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else if (c !== '\r') field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(f => f.trim() !== ''));
+}
+
+function rowsToEntries(rows) {
+  if (!rows.length) return [];
+  const header = rows[0].map(h => String(h).toLowerCase().replace(/[^a-z#]/g, ''));
+  const cols = {}, used = new Set();
+  for (const [field, aliases] of Object.entries(ALIASES)) {
+    for (const a of aliases) {
+      const i = header.findIndex((h, idx) => h === a && !used.has(idx));
+      if (i >= 0) { cols[field] = i; used.add(i); break; }
+    }
+  }
+  const isHeader = cols.term !== undefined || Object.keys(cols).length >= 2;
+  if (isHeader && cols.term === undefined) cols.term = header.findIndex((_, i) => !used.has(i));
+  const map = isHeader ? cols : { term: 0, book: 1, page: 2, desc: 3 };
+  const get = (r, k) => map[k] === undefined || map[k] < 0 ? '' : String(r[map[k]] ?? '').trim();
+  return (isHeader ? rows.slice(1) : rows).map(r => ({
+    term: get(r, 'term'),
+    book: get(r, 'book').replace(/^(book|bk|b)\s*\.?\s*/i, ''),
+    page: get(r, 'page').replace(/^(pages?|pgs?|p)\s*\.?\s*/i, ''),
+    desc: get(r, 'desc'),
+  })).filter(e => e.term);
+}
+
+function addImported(list) {
+  const key = e => [e.term, e.book, e.page].map(v => v.toLowerCase()).join('\u0001');
+  const seen = new Set(state.doc.entries.map(key));
+  let added = 0, skipped = 0;
+  const ts = Date.now();
+  for (const e of list) {
+    const k = key(e);
+    if (seen.has(k)) { skipped++; continue; }
+    seen.add(k);
+    state.doc.entries.push({ id: uid(), term: e.term, book: e.book, page: e.page, desc: e.desc, ts: ts + added, mt: ts + added });
+    added++;
+  }
+  if (added) { markDirty(); renderAll(); }
+  toast(`Imported ${added} entr${added === 1 ? 'y' : 'ies'}` + (skipped ? `, skipped ${skipped} duplicate${skipped === 1 ? '' : 's'}` : ''));
+  return added;
+}
+
+function importText(text, filename = '') {
+  const trimmed = text.trim();
+  if (!trimmed) return toast('Nothing to import');
+  if (/\.json$/i.test(filename) || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    let j;
+    try { j = JSON.parse(trimmed); } catch { return alert('That file is not valid JSON.'); }
+    const arr = Array.isArray(j) ? j : (j.entries || []);
+    if (j.books && typeof j.books === 'object') {
+      for (const [b, v] of Object.entries(j.books)) {
+        if (state.doc.books[b] || !v || typeof v !== 'object') continue;
+        state.doc.books[b] = { title: String(v.title || ''), color: HEX_RE.test(v.color || '') ? v.color : defaultColor(b) };
+        stamp('books'); markDirty();
+      }
+    }
+    const pick = (x, ...ks) => { for (const k of ks) if (x[k] != null) return String(x[k]).trim(); return ''; };
+    return addImported(arr.filter(x => x && typeof x === 'object').map(x => ({
+      term: pick(x, 'term', 'Term', 'title', 'Title'), book: pick(x, 'book', 'Book'),
+      page: pick(x, 'page', 'Page'), desc: pick(x, 'desc', 'description', 'Description', 'notes'),
+    })).filter(e => e.term));
+  }
+  return addImported(rowsToEntries(parseDelimited(text)));
+}
+
+// ------------------------------------------------------------------ dialogs
+function openNewDialog() {
+  $('#newName').value = ''; $('#newTitle').value = ''; $('#newErr').textContent = '';
+  $('#dlgNew').showModal();
+  $('#newName').focus();
+}
+
+function openSettings() {
+  if (!state.doc) return openNewDialog();
+  $('#setTitle').value = state.doc.title;
+  const ids = new Set(allBooks());
+  if (!ids.size) ['1', '2', '3', '4', '5'].forEach(b => ids.add(b));
+  $('#booksBody').innerHTML = [...ids].sort(collator.compare).map(bookRow).join('');
+  $('#dlgSettings').showModal();
+}
+function bookRow(b) {
+  return `<tr data-id="${esc(b)}"><td><span class="bk" style="--c:${bookColor(b)}">${esc(b)}</span></td>`
+    + `<td style="width:100%"><input type="text" class="bTitle" value="${esc(bookTitle(b))}" placeholder="Book ${esc(b)} title (optional)"></td>`
+    + `<td><input type="color" class="bColor" value="${bookColor(b)}" title="Book color"></td></tr>`;
+}
+function applySettings() {
+  const doc = state.doc;
+  if (!doc) return;
+  const title = $('#setTitle').value.trim() || `${doc.name} Index`;
+  const books = {};
+  for (const tr of $('#booksBody').querySelectorAll('tr')) {
+    books[tr.dataset.id] = { title: $('.bTitle', tr).value.trim(), color: $('.bColor', tr).value.toUpperCase() };
+  }
+  if (title !== doc.title) { doc.title = title; stamp('title'); markDirty(); }
+  if (JSON.stringify(books) !== JSON.stringify(doc.books)) { doc.books = books; stamp('books'); markDirty(); renderAll(); }
+}
+
+function openExport() {
+  if (!state.doc) return openNewDialog();
+  const s = state.doc.settings;
+  $('#optMerge').checked = s.merge; $('#optColor').checked = s.colorRows;
+  $('#optSymbols').checked = s.ignoreSymbols; $('#optDesc').checked = s.showDesc; $('#optPaper').value = s.paper;
+  $('#dlgExport').showModal();
+}
+
+// ------------------------------------------------------------------ wiring
+for (const el of [fBook, fPage, fTerm, fDesc]) {
+  el.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    if (!fTerm.value.trim()) fTerm.focus(); else submitEntry();
+  });
+}
+fTerm.addEventListener('input', renderHint);
+$('#btnAdd').addEventListener('click', submitEntry);
+$('#btnCancel').addEventListener('click', cancelEdit);
+$('#hint').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  const src = chip && state.doc.entries.find(x => x.id === chip.dataset.id);
+  if (!src) return;
+  fTerm.value = src.term;
+  if (!fDesc.value.trim()) fDesc.value = src.desc;
+  renderHint();
+  fDesc.focus();
+});
+
+$('#tbody').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const id = btn.closest('tr').dataset.id;
+  if (btn.dataset.act === 'edit') startEdit(id); else deleteEntry(id);
+});
+$('#tbody').addEventListener('dblclick', e => {
+  const tr = e.target.closest('tr[data-id]');
+  if (tr && !e.target.closest('button')) startEdit(tr.dataset.id);
+});
+search.addEventListener('input', renderTable);
+$('#bookFilter').addEventListener('change', renderTable);
+$('#sortSel').addEventListener('change', () => { store.set('sort', $('#sortSel').value); renderTable(); });
+
+document.addEventListener('keydown', e => {
+  if (document.querySelector('dialog[open]')) return;
+  const alt = e.altKey && !e.metaKey && !e.ctrlKey;
+  if (alt && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); bumpPage(e.key === 'ArrowUp' ? 1 : -1); return; }
+  if (alt && /^Digit[1-9]$/.test(e.code)) { e.preventDefault(); fBook.value = e.code.slice(5); flashField(fBook); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); search.focus(); search.select(); return; }
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  if (e.key === '/' && !typing) { e.preventDefault(); search.focus(); return; }
+  if (e.key === 'Escape') {
+    if (e.target === search) { search.value = ''; renderTable(); fTerm.focus(); }
+    else if (state.editingId) cancelEdit();
+    else if (e.target === fTerm || e.target === fDesc) { fTerm.value = ''; fDesc.value = ''; renderHint(); }
+  }
+});
+
+$('#indexSel').addEventListener('change', e => { if (e.target.value) openIndex(e.target.value).catch(err => alert(err.message)); });
+$('#btnNew').addEventListener('click', openNewDialog);
+$('#btnSettings').addEventListener('click', openSettings);
+$('#btnExport').addEventListener('click', openExport);
+for (const b of document.querySelectorAll('[data-close]')) b.addEventListener('click', () => b.closest('dialog').close());
+for (const d of document.querySelectorAll('dialog')) d.addEventListener('close', () => { if (state.doc) fTerm.focus(); });
+
+$('#newCancel').addEventListener('click', () => $('#dlgNew').close());
+$('#formNew').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { await createIndex($('#newName').value.trim(), $('#newTitle').value.trim()); $('#dlgNew').close(); fTerm.focus(); }
+  catch (err) { $('#newErr').textContent = err.message; }
+});
+
+$('#dlgSettings').addEventListener('close', applySettings);
+$('#booksBody').addEventListener('input', e => {
+  if (e.target.classList.contains('bColor')) $('.bk', e.target.closest('tr')).style.setProperty('--c', e.target.value);
+});
+$('#btnAddBook').addEventListener('click', () => {
+  const ids = [...$('#booksBody').querySelectorAll('tr')].map(tr => tr.dataset.id);
+  const next = Math.max(0, ...ids.map(Number).filter(Number.isFinite)) + 1;
+  const id = (prompt('Book id (e.g. 6, or W for the workbook):', String(next)) || '').trim();
+  if (!id) return;
+  if (ids.includes(id)) return alert(`Book ${id} is already in the list.`);
+  $('#booksBody').insertAdjacentHTML('beforeend', bookRow(id));
+});
+$('#btnDelete').addEventListener('click', () => deleteIndex().catch(err => alert(err.message)));
+
+const OPTS = { optMerge: 'merge', optColor: 'colorRows', optSymbols: 'ignoreSymbols', optDesc: 'showDesc', optPaper: 'paper' };
+for (const [id, key] of Object.entries(OPTS)) {
+  $('#' + id).addEventListener('change', e => {
+    state.doc.settings[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    stamp('settings');
+    markDirty();
+    if (key === 'ignoreSymbols') renderTable();
+  });
+}
+$('#expDocx').addEventListener('click', e => exportDocx(e.currentTarget));
+$('#expPrint').addEventListener('click', exportPrint);
+$('#expCsv').addEventListener('click', exportCsv);
+$('#expJson').addEventListener('click', exportJson);
+$('#impFileBtn').addEventListener('click', () => $('#impFile').click());
+$('#impFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) importText(await file.text(), file.name);
+});
+$('#impPasteBtn').addEventListener('click', () => {
+  if (importText($('#impPaste').value)) $('#impPaste').value = '';
+});
+
+window.addEventListener('beforeunload', e => { if (state.dirty || state.sending) { e.preventDefault(); e.returnValue = ''; } });
+document.addEventListener('visibilitychange', () => {
+  if (state.doc) sync();
+  if (!document.hidden) refreshNames().catch(() => {});
+});
+window.addEventListener('focus', () => { if (state.doc && !state.dirty) sync(); });
+setInterval(() => { if (state.doc && !document.hidden && !state.dirty) sync(); }, 5000);
+
+(async function init() {
+  const sort = store.get('sort');
+  if (['az', 'book', 'recent'].includes(sort)) $('#sortSel').value = sort;
+  try { await refreshNames(); }
+  catch (err) { setStatus('error', err.message); renderAll(); return alert(err.message); }
+  const last = store.get('lastIndex');
+  const pick = state.names.find(n => n.name === last) || state.names[0];
+  if (pick) await openIndex(pick.name).catch(err => alert(err.message));
+  else { renderAll(); openNewDialog(); }
+})();
+</script>
+</body>
+</html>
